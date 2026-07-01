@@ -1,36 +1,36 @@
 # DalamudTextEdit
 
-A colorizing, multi-line text editor widget for [Dalamud](https://github.com/goatcorp/Dalamud) plugins, built on `Dalamud.Bindings.ImGui`. It gives you an in-field, syntax-highlighted editing surface — something ImGui's stock `InputTextMultiline` can't do, since it renders the entire buffer in a single color.
+A multi-line text editor for Dalamud plugins that actually does syntax highlighting. ImGui's built-in `InputTextMultiline` paints the whole box a single color, which is fine for a name field and useless for anything code-shaped. This gives you real per-token coloring in the field as you type.
 
-Highlighting is pluggable: you supply an `ISyntaxHighlighter` and the editor colors tokens as the user types.
+You bring an `ISyntaxHighlighter`; it handles the coloring.
 
-## Features
+## What you get
 
-- Pluggable syntax highlighting (`ISyntaxHighlighter`)
-- Toggleable line numbers
-- Error markers with hover tooltips
-- Undo/redo, selection, and clipboard
-- Word tooltips (driven by the highlighter)
-- Native feel: background follows the active ImGui theme, cursor blink matches `InputText`, Escape releases focus, and it fills its container like `InputTextMultiline`
-- Fully overridable color palette
+- Syntax highlighting you plug in yourself
+- Line numbers you can turn off
+- Error markers with tooltips on hover
+- Undo/redo, selection, clipboard, the usual editing you'd expect
+- Hover tooltips (your highlighter decides what they say)
+- It looks like it belongs: the background follows your ImGui theme, the cursor blinks like a normal `InputText`, Escape drops focus, and it fills whatever space you hand it
+- Every color is overridable if you don't like mine
 
-## Origin & credits
+## Where this came from
 
-This is a Dalamud-targeted fork of **[ImGuiColorTextEditNet](https://github.com/csinkers/ImGuiColorTextEditNet)** by [csinkers](https://github.com/csinkers), which is itself a C# port of **[ImGuiColorTextEdit](https://github.com/BalazsJako/ImGuiColorTextEdit)** by [BalázsJákó](https://github.com/BalazsJako). Both are MIT licensed, and this fork stays MIT.
+This is a fork of [ImGuiColorTextEditNet](https://github.com/csinkers/ImGuiColorTextEditNet) by csinkers, which is itself a C# port of Balázs Jákó's [ImGuiColorTextEdit](https://github.com/BalazsJako/ImGuiColorTextEdit). Both are MIT, and so is this.
 
-What changed here:
+What I changed:
 
-- **Retargeted** from [ImGui.NET](https://github.com/ImGuiNET/ImGui.NET) to `Dalamud.Bindings.ImGui`, so it runs inside Dalamud plugins.
-- **Trimmed** to a lean editor: removed breakpoints, the debugger executing-line highlight, overwrite/insert mode, JSON state serialization, the built-in C-style and regex language highlighters, the extra color schemes, and tab-to-indent.
-- **Native polish**: ImGui-theme-driven chrome (background, selection, cursor, line numbers), an `InputText`-matched cursor blink, Escape-to-defocus, and a line-number toggle.
+- Pointed it at `Dalamud.Bindings.ImGui` instead of [ImGui.NET](https://github.com/ImGuiNET/ImGui.NET) so it runs inside a Dalamud plugin.
+- Cut everything I didn't need: breakpoints, the debugger's executing-line highlight, overwrite mode, JSON state serialization, the bundled C-style and regex highlighters, the spare color schemes, tab-to-indent. It's an editor, not an IDE.
+- Made it feel native: theme-aware colors, a cursor blink that matches `InputText`, Escape-to-defocus, and a line-number toggle.
 
-## Requirements
+## Getting it
 
-A Dalamud plugin host. The project references `Dalamud.Bindings.ImGui.dll` from your local Dalamud dev folder and is intended to be consumed by a Dalamud plugin (which supplies that assembly at runtime).
+You need a Dalamud plugin to host it. It references `Dalamud.Bindings.ImGui.dll` from your local Dalamud dev folder and expects the plugin to supply that at runtime.
 
-## Usage
+For now it's a git submodule plus a `<ProjectReference>`. A NuGet package may come later.
 
-Reference the project — a git submodule plus a `<ProjectReference>` today, a NuGet package later — then:
+## Using it
 
 ```csharp
 using ImGuiColorTextEditNet;
@@ -39,19 +39,19 @@ using System.Numerics;
 readonly TextEditor _editor = new()
 {
     AllText = "/say hi\n:if {hpp} < 50\n/ac Cure\n:endif",
-    SyntaxHighlighter = new MyHighlighter(), // your ISyntaxHighlighter
+    SyntaxHighlighter = new MyHighlighter(),
 };
 _editor.Renderer.ShowLineNumbers = true;
 
-// each frame, inside a window:
+// then, every frame inside a window:
 _editor.Render("###editor", new Vector2(-1, ImGui.GetContentRegionAvail().Y));
 ```
 
-`Render` returns `true` on frames where the text changed. Read or replace the buffer with `_editor.AllText`.
+`Render` returns `true` on the frames where the text changed, so you know when to save. Read or replace the buffer with `_editor.AllText`.
 
-## Custom syntax highlighting
+## Your own highlighting
 
-Implement `ISyntaxHighlighter` and assign it to `editor.SyntaxHighlighter`. `Colorize` receives one line's glyphs and sets each glyph's palette index:
+Implement `ISyntaxHighlighter` and hand it to `editor.SyntaxHighlighter`. `Colorize` gets one line of glyphs and you set the palette index on each one:
 
 ```csharp
 public sealed class MyHighlighter : ISyntaxHighlighter
@@ -63,15 +63,15 @@ public sealed class MyHighlighter : ISyntaxHighlighter
     public object Colorize(Span<Glyph> line, object? state)
     {
         for (var i = 0; i < line.Length; i++)
-            line[i] = new Glyph(line[i].Char, /* PaletteIndex for this token */ PaletteIndex.Default);
+            line[i] = new Glyph(line[i].Char, PaletteIndex.Default); // pick a real index per token
 
         return state;
     }
 }
 ```
 
-Token colors resolve through `PaletteIndex`. Override any slot with `editor.Renderer.SetColor(PaletteIndex.Keyword, 0xff_00_ff_ff)`, or replace the whole palette via `editor.Renderer.Palette`. Chrome colors (background, selection, cursor, line numbers) track the ImGui theme automatically.
+Colors live in `PaletteIndex`. Override one with `editor.Renderer.SetColor(PaletteIndex.Keyword, 0xff_00_ff_ff)`, or swap the whole palette via `editor.Renderer.Palette`. The chrome (background, selection, cursor, line numbers) already tracks your ImGui theme, so you usually only touch the token colors.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). The license retains the original copyrights of ImGuiColorTextEditNet (csinkers) and ImGuiColorTextEdit (Balázs Jákó); this fork adds its own.
+MIT. See [LICENSE](LICENSE). It keeps csinkers' and Balázs Jákó's original copyright lines alongside mine, since that's how MIT forks work.
