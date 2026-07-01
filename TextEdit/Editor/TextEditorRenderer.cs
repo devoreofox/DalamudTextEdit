@@ -129,40 +129,45 @@ public class TextEditorRenderer
         ImGui.PushStyleColor(ImGuiCol.ChildBg, ImGui.ColorConvertU32ToFloat4(ImGui.GetColorU32(ImGuiCol.FrameBg)));
         ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(0.0f, 0.0f));
 
-        if (!IsImGuiChildIgnored)
+        try
         {
-            ImGui.BeginChild(
-                title,
-                size,
-                false,
-                ImGuiWindowFlags.HorizontalScrollbar
+            if (!IsImGuiChildIgnored)
+            {
+                ImGui.BeginChild(
+                    title,
+                    size,
+                    false,
+                    ImGuiWindowFlags.HorizontalScrollbar
                     | ImGuiWindowFlags.NoMove
-            );
+                );
+            }
+
+            if (IsHandleKeyboardInputsEnabled && KeyboardInput != null)
+                KeyboardInput.HandleKeyboardInputs();
+
+            if (IsHandleMouseInputsEnabled && MouseInput != null)
+                MouseInput.HandleMouseInputs();
+
+            _color.ColorizeIncremental();
+            RenderInner();
+
+            if (_text.PendingScrollRequest != null)
+            {
+                if (_text.PendingScrollRequest.Value < _text.LineCount)
+                    EnsurePositionVisible(new(_text.PendingScrollRequest.Value, 0));
+
+                ImGui.SetWindowFocus();
+                _text.PendingScrollRequest = null;
+            }
         }
-
-        if (IsHandleKeyboardInputsEnabled && KeyboardInput != null)
-            KeyboardInput.HandleKeyboardInputs();
-
-        if (IsHandleMouseInputsEnabled && MouseInput != null)
-            MouseInput.HandleMouseInputs();
-
-        _color.ColorizeIncremental();
-        RenderInner();
-
-        if (_text.PendingScrollRequest != null)
+        finally
         {
-            if (_text.PendingScrollRequest.Value < _text.LineCount)
-                EnsurePositionVisible(new(_text.PendingScrollRequest.Value, 0));
+            if (!IsImGuiChildIgnored)
+                ImGui.EndChild();
 
-            ImGui.SetWindowFocus();
-            _text.PendingScrollRequest = null;
+            ImGui.PopStyleVar();
+            ImGui.PopStyleColor();
         }
-
-        if (!IsImGuiChildIgnored)
-            ImGui.EndChild();
-
-        ImGui.PopStyleVar();
-        ImGui.PopStyleColor();
     }
 
     void RenderInner()
