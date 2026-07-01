@@ -32,6 +32,8 @@ internal class TextEditorColor
 
     internal void ColorizeIncremental()
     {
+        _colorRangeMax = Math.Min(_colorRangeMax, _text.LineCount);
+
         if (
             _text.LineCount == 0
             || !_options.IsColorizerEnabled
