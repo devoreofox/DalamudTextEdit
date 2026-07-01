@@ -103,6 +103,9 @@ public class TextEditorRenderer
     /// <summary>Indicates whether line numbers are shown in the gutter.</summary>
     public bool ShowLineNumbers { get; set; } = true;
 
+    /// <summary>When true, the whole buffer is re-colorized every frame. Use for small buffers where incremental coloring lags.</summary>
+    public bool ColorizeEveryFrame { get; set; }
+
     internal TextEditorRenderer(TextEditor editor, uint[] palette)
     {
         ArgumentNullException.ThrowIfNull(editor);
@@ -148,6 +151,8 @@ public class TextEditorRenderer
             if (IsHandleMouseInputsEnabled && MouseInput != null)
                 MouseInput.HandleMouseInputs();
 
+            if (ColorizeEveryFrame)
+                _color.InvalidateColor(0, -1);
             _color.ColorizeIncremental();
             RenderInner();
 
