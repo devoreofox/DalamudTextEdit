@@ -245,8 +245,19 @@ public static class TextEditorModify
         }
         else
         {
-            var cindex = e.Text.GetCharacterIndex(pos) - 1;
-            var removed = e.Text.GetText(pos - (0, 1), pos);
+            var charIndex = e.Text.GetCharacterIndex(pos);
+            var removeCount = 1;
+
+            var lineText = e.Text.GetLineText(pos.Line);
+            if (charIndex > 0 && lineText.AsSpan(0, charIndex).IndexOfAnyExcept(' ') < 0)
+            {
+                var tab = e.Options.TabSize;
+                var prevStop = (pos.Column - 1) / tab * tab;
+                removeCount = pos.Column - prevStop;
+            }
+
+            var cindex = charIndex - removeCount;
+            var removed = e.Text.GetText(pos - (0, removeCount), pos);
 
             u.Add(
                 new ModifyLineOperation
@@ -257,7 +268,7 @@ public static class TextEditorModify
                 }
             );
 
-            u.After.Cursor = (e.Selection.Cursor.Line, e.Selection.Cursor.Column - 1);
+            u.After.Cursor = (e.Selection.Cursor.Line, e.Selection.Cursor.Column - removeCount);
         }
 
         u.After.Start = u.After.End = u.After.Cursor;
