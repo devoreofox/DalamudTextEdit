@@ -142,6 +142,7 @@ public class TextEditorRenderer
                     false,
                     ImGuiWindowFlags.HorizontalScrollbar
                     | ImGuiWindowFlags.NoMove
+                    | ImGuiWindowFlags.NoNavInputs
                 );
             }
 
