@@ -296,7 +296,8 @@ public static class TextEditorModify
                 ? e.Selection.Start.Column
                 : e.Selection.GetActualCursorCoordinates().Column;
             var count = e.Options.TabSize - col % e.Options.TabSize;
-            ReplaceSelection(e, new string(' ', count));
+            for (var i = 0; i < count; i++)
+                EnterCharacter(e, ' '); // advances the cursor; ReplaceSelection leaves it at the start
             return;
         }
 
