@@ -278,6 +278,101 @@ public static class TextEditorModify
         e.UndoStack.AddUndo(u);
     }
 
+    /// <summary>Indents the selected lines, or inserts spaces to the next tab stop when there is no multi-line selection.</summary>
+    public static void Indent(TextEditor e)
+    {
+        if (e.Options.IsReadOnly)
+            return;
+
+        var startLine = e.Selection.Start.Line;
+        var endLine = e.Selection.End.Line;
+        if (e.Selection.End.Column == 0 && endLine > startLine)
+            endLine--; // selection ends at column 0 of the next line, don't indent it
+
+        if (!e.Selection.HasSelection || startLine == endLine)
+        {
+            // Single line / no selection: fill spaces to the next tab stop.
+            var col = e.Selection.HasSelection
+                ? e.Selection.Start.Column
+                : e.Selection.GetActualCursorCoordinates().Column;
+            var count = e.Options.TabSize - col % e.Options.TabSize;
+            ReplaceSelection(e, new string(' ', count));
+            return;
+        }
+
+        var indent = new string(' ', e.Options.TabSize);
+        MetaOperation u = new() { Before = e.Selection.State };
+        for (var i = startLine; i <= endLine; i++)
+            u.Add(new ModifyLineOperation { Line = i, AddedColumn = 0, Added = indent });
+
+        u.After.Start = (startLine, 0);
+        u.After.End = (endLine, e.Text.GetLineMaxColumn(endLine) + e.Options.TabSize);
+        u.After.Cursor = u.After.End;
+        u.Apply(e);
+        e.UndoStack.AddUndo(u);
+    }
+
+    /// <summary>Removes one indent level (up to TabSize leading spaces, or one leading tab) from the selected lines or the current line.</summary>
+    public static void Dedent(TextEditor e)
+    {
+        if (e.Options.IsReadOnly)
+            return;
+
+        int startLine,
+            endLine;
+        if (e.Selection.HasSelection)
+        {
+            startLine = e.Selection.Start.Line;
+            endLine = e.Selection.End.Line;
+            if (e.Selection.End.Column == 0 && endLine > startLine)
+                endLine--;
+        }
+        else
+        {
+            startLine = endLine = e.Selection.GetActualCursorCoordinates().Line;
+        }
+
+        var cursorLine = e.Selection.GetActualCursorCoordinates().Line;
+        var removedOnCursorLine = 0;
+
+        MetaOperation u = new() { Before = e.Selection.State };
+        for (var i = startLine; i <= endLine; i++)
+        {
+            var text = e.Text.GetLineText(i);
+            var remove = 0;
+            while (remove < e.Options.TabSize && remove < text.Length && text[remove] == ' ')
+                remove++;
+            if (remove == 0 && text.Length > 0 && text[0] == '\t')
+                remove = 1; // treat a hard tab as one indent level
+
+            if (remove == 0)
+                continue;
+
+            u.Add(new ModifyLineOperation { Line = i, RemovedColumn = 0, Removed = text[..remove] });
+            if (i == cursorLine)
+                removedOnCursorLine = remove;
+        }
+
+        if (u.Count == 0)
+            return;
+
+        if (endLine > startLine)
+        {
+            u.After.Start = (startLine, 0);
+            u.After.End = (endLine, e.Text.GetLineMaxColumn(endLine));
+            u.After.Cursor = u.After.End;
+        }
+        else
+        {
+            var cur = e.Selection.GetActualCursorCoordinates();
+            u.After.Cursor = (cur.Line, Math.Max(0, cur.Column - removedOnCursorLine));
+            u.After.Start = u.After.End = u.After.Cursor;
+        }
+
+        u.Apply(e);
+        e.UndoStack.AddUndo(u);
+    }
+
     static UndoRecord DeleteSelection(TextEditor e)
     {
         Util.Assert(e.Selection.End >= e.Selection.Start);

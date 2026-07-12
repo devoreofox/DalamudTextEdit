@@ -23,12 +23,8 @@ public class StandardKeyboardInput : ITextEditorKeyboardInput
         AddReadOnlyBinding("Ctrl + V", TextEditorModify.Paste);
         AddReadOnlyBinding("Ctrl + X", TextEditorModify.Cut);
         AddReadOnlyBinding("Enter", e => TextEditorModify.EnterCharacter(e, '\n'));
-        AddMutatingBinding("Tab", e =>
-        {
-            var column = e.Selection.GetActualCursorCoordinates().Column;
-            var count = e.Options.TabSize - column % e.Options.TabSize;
-            for (var i = 0; i < count; i++) TextEditorModify.EnterCharacter(e, ' ');
-        });
+        AddMutatingBinding("Tab", TextEditorModify.Indent);
+        AddMutatingBinding("Shift + Tab", TextEditorModify.Dedent);
         AddReadOnlyBinding("Escape", _ => ImGui.SetWindowFocus(default));
 
         AddMutatingBinding("UpArrow", e => e.Movement.MoveUp());
